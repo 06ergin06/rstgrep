@@ -55,5 +55,8 @@ fn main() {
         .lines()
         .enumerate()
         .filter(|(_, line)| re.is_match(line))
-        .for_each(|(idx, line)| println!("{}: {line}", idx + 1));
+        .for_each(|(idx, line)|{
+            let colored_line = re.replace_all(line, "\x1b[1;31m$0\x1b[0m");
+            println!("{}: {colored_line}", idx + 1)
+        });
 }
