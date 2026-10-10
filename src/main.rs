@@ -1,12 +1,12 @@
+use regex::Regex;
 use std::env;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
-use regex::Regex;
 
 enum InputSource {
     File(String),
-    Command(String),
+    Command,
 }
 
 fn main() {
@@ -19,39 +19,35 @@ fn main() {
 
     let pattern = &args[1];
     let target = &args[2];
-
-    let mut parts = target.split_whitespace();
-    let is_command = if let Some(cmd) = parts.next() {
-        Command::new(cmd).args(parts).output().is_ok()
-    } else {
-        false
-    };
+    let mut command_output = None;
 
     let source = if Path::new(target).exists() {
         InputSource::File(target.clone())
-    } else if is_command {
-        InputSource::Command(target.clone())
     } else {
-        eprintln!("Error: target is not file or command.");
-        std::process::exit(1);
+        let mut parts = target.split_whitespace();
+        if let Some(cmd) = parts.next() {
+            command_output = Command::new(cmd).args(parts).output().ok();
+        }
+
+        if command_output.is_some() {
+            InputSource::Command
+        } else {
+            eprintln!("Error: target is not file or command.");
+            std::process::exit(1);
+        }
     };
 
     let content = match source {
         InputSource::File(path) => fs::read_to_string(&path).expect("File could not be read"),
-        InputSource::Command(cmd_str) => {
-            let mut parts = cmd_str.split_whitespace();
-            let cmd = parts.next().expect("command failed");
-            let output = Command::new(cmd)
-                .args(parts)
-                .output()
-                .expect("command failed");
-            String::from_utf8_lossy(&output.stdout).to_string()
+        InputSource::Command => {
+            let out = command_output.expect("command output missing");
+            String::from_utf8_lossy(&out.stdout).to_string()
         }
     };
     let re = match Regex::new(pattern) {
         Ok(r) => r,
         Err(e) => {
-            eprint!("regex error {e}");
+            eprintln!("Error: {e}");
             std::process::exit(1);
         }
     };
