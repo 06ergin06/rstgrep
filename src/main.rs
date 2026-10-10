@@ -2,6 +2,7 @@ use std::env;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
+use regex::Regex;
 
 enum InputSource {
     File(String),
@@ -47,9 +48,16 @@ fn main() {
             String::from_utf8_lossy(&output.stdout).to_string()
         }
     };
+    let re = match Regex::new(pattern) {
+        Ok(r) => r,
+        Err(e) => {
+            eprint!("regex error {e}");
+            std::process::exit(1);
+        }
+    };
     content
         .lines()
         .enumerate()
-        .filter(|(_, line)| line.contains(pattern))
+        .filter(|(_, line)| re.is_match(line))
         .for_each(|(idx, line)| println!("{}: {line}", idx + 1));
 }
